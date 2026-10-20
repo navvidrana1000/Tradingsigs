@@ -1,0 +1,139 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Hardened Security Primitives ---
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Bootstrapped Administrator from environment
+    function isBootstrapAdmin() {
+      return isSignedIn() &&
+        request.auth.token.email == 'rnavvid1000@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrapAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    // --- Validation Helper for User Profiles ---
+    function isValidUser(data) {
+      return data.keys().hasAll(['id', 'email', 'role', 'status', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'email', 'displayName', 'photoURL', 'role', 'status', 'createdAt', 'updatedAt', 'approvedBy', 'approvedAt']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.email is string && data.email.size() <= 256 &&
+        data.role in ['admin', 'trader'] &&
+        data.status in ['pending', 'approved', 'rejected'] &&
+        data.createdAt is string && data.createdAt.size() <= 64 &&
+        (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 128)) &&
+        (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 1024)) &&
+        (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64)) &&
+        (!('approvedBy' in data) || (data.approvedBy is string && data.approvedBy.size() <= 128)) &&
+        (!('approvedAt' in data) || (data.approvedAt is string && data.approvedAt.size() <= 64));
+    }
+
+    function isValidAdminRecord(data) {
+      return data.keys().hasAll(['userId', 'email', 'assignedAt']) &&
+        data.keys().hasOnly(['userId', 'email', 'assignedAt', 'assignedBy']) &&
+        data.userId is string && data.userId.size() <= 128 &&
+        data.email is string && data.email.size() <= 256 &&
+        data.assignedAt is string && data.assignedAt.size() <= 64 &&
+        (!('assignedBy' in data) || (data.assignedBy is string && data.assignedBy.size() <= 128));
+    }
+
+    function isValidUserSettings(data) {
+      return data.keys().hasAll(['userId', 'updatedAt']) &&
+        data.userId is string && data.userId.size() <= 128 &&
+        data.updatedAt is string && data.updatedAt.size() <= 64 &&
+        (!('twelveDataApiKey' in data) || (data.twelveDataApiKey is string && data.twelveDataApiKey.size() <= 128)) &&
+        (!('finnhubApiKey' in data) || (data.finnhubApiKey is string && data.finnhubApiKey.size() <= 128)) &&
+        (!('telegramBotToken' in data) || (data.telegramBotToken is string && data.telegramBotToken.size() <= 128)) &&
+        (!('telegramChatId' in data) || (data.telegramChatId is string && data.telegramChatId.size() <= 64)) &&
+        (!('riskPerTradeDollars' in data) || (data.riskPerTradeDollars is number)) &&
+        (!('risk_per_trade_pct' in data) || (data.risk_per_trade_pct is number)) &&
+        (!('account_balance' in data) || (data.account_balance is number)) &&
+        (!('auto_supervise_enabled' in data) || (data.auto_supervise_enabled is bool));
+    }
+
+    function isValidHistoryItem(data) {
+      return data.keys().hasAll(['id', 'userId', 'symbol', 'direction', 'entry_price', 'status', 'opened_at']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.userId is string && data.userId.size() <= 128 &&
+        data.symbol is string && data.symbol.size() <= 32 &&
+        data.direction is string && data.direction.size() <= 32 &&
+        data.entry_price is number &&
+        data.status is string && data.status.size() <= 64 &&
+        data.opened_at is string && data.opened_at.size() <= 64;
+    }
+
+    // --- User Accounts Collection ---
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+
+      allow create: if isSignedIn() && isValidId(userId) && isValidUser(incoming()) && (
+        (isOwner(userId) && incoming().id == request.auth.uid && (
+          isAdmin() ||
+          (incoming().role == 'trader' && incoming().status == 'pending')
+        )) ||
+        (isAdmin() && incoming().id == userId)
+      );
+
+      allow update: if isSignedIn() && isValidId(userId) && isValidUser(incoming()) && (
+        (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'role', 'approvedBy', 'approvedAt', 'updatedAt'])) ||
+        (isOwner(userId) &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'updatedAt']) &&
+          incoming().role == existing().role &&
+          incoming().status == existing().status
+        )
+      );
+
+      allow delete: if isAdmin() && isValidId(userId);
+
+      // --- Subcollection: User Settings & API Keys ---
+      match /settings/{settingId} {
+        allow read, write: if isSignedIn() && isOwner(userId) && isValidId(settingId);
+      }
+
+      // --- Subcollection: Strategy Testing Lab History ---
+      match /testingLabHistory/{testId} {
+        allow read, write: if isSignedIn() && isOwner(userId) && isValidId(testId);
+      }
+    }
+
+    // --- Market Prices Cache ---
+    match /marketPrices/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // --- Trusted Admins Collection ---
+    match /admins/{userId} {
+      allow read: if isSignedIn() && isValidId(userId);
+      allow create, update: if (isBootstrapAdmin() || isAdmin()) && isValidId(userId) && isValidAdminRecord(incoming());
+      allow delete: if (isBootstrapAdmin() || isAdmin()) && isValidId(userId);
+    }
+  }
+}

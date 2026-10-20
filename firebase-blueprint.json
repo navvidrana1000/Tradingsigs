@@ -1,0 +1,262 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with role-based access control and approval state",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Firebase Auth UID of the user",
+          "maxLength": 128
+        },
+        "email": {
+          "type": "string",
+          "description": "User email address",
+          "maxLength": 256
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User display name",
+          "maxLength": 128
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "Profile picture URL",
+          "maxLength": 1024
+        },
+        "role": {
+          "type": "string",
+          "description": "Access role within the application",
+          "enum": ["admin", "trader"]
+        },
+        "status": {
+          "type": "string",
+          "description": "Approval status required for terminal access",
+          "enum": ["pending", "approved", "rejected"]
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Account registration timestamp",
+          "maxLength": 64
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Profile update timestamp",
+          "maxLength": 64
+        },
+        "approvedBy": {
+          "type": "string",
+          "description": "UID or email of the admin who approved or rejected the account",
+          "maxLength": 128
+        },
+        "approvedAt": {
+          "type": "string",
+          "description": "Timestamp when status was approved or rejected",
+          "maxLength": 64
+        }
+      },
+      "required": ["id", "email", "role", "status", "createdAt"]
+    },
+    "UserSettings": {
+      "title": "UserSettings",
+      "description": "User-specific API credentials, broker configurations, and risk parameters",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "UID of owner",
+          "maxLength": 128
+        },
+        "twelveDataApiKey": {
+          "type": "string",
+          "description": "Twelve Data API key for real-time WebSocket quotes",
+          "maxLength": 128
+        },
+        "finnhubApiKey": {
+          "type": "string",
+          "description": "Finnhub API key",
+          "maxLength": 128
+        },
+        "telegramBotToken": {
+          "type": "string",
+          "description": "Telegram Bot Token for alerts",
+          "maxLength": 128
+        },
+        "telegramChatId": {
+          "type": "string",
+          "description": "Telegram Chat ID for alerts",
+          "maxLength": 64
+        },
+        "riskPerTradeDollars": {
+          "type": "number",
+          "description": "Normalized dollar risk per trade execution"
+        },
+        "risk_per_trade_pct": {
+          "type": "number",
+          "description": "Normalized percentage risk per trade execution"
+        },
+        "account_balance": {
+          "type": "number",
+          "description": "Simulated or connected account balance"
+        },
+        "auto_supervise_enabled": {
+          "type": "boolean",
+          "description": "Whether autonomous supervisor is enabled"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when settings were synchronized",
+          "maxLength": 64
+        }
+      },
+      "required": ["userId", "updatedAt"]
+    },
+    "TestingLabHistoryItem": {
+      "title": "TestingLabHistoryItem",
+      "description": "Completed strategy test records with realized PnL and R-multiples",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique test run identifier",
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "description": "UID of user who executed the test",
+          "maxLength": 128
+        },
+        "symbol": {
+          "type": "string",
+          "description": "Asset symbol (e.g. BTCUSDT, EUR/USD)",
+          "maxLength": 32
+        },
+        "name": {
+          "type": "string",
+          "description": "Full asset name",
+          "maxLength": 128
+        },
+        "asset_class": {
+          "type": "string",
+          "description": "Asset class category",
+          "maxLength": 32
+        },
+        "strategy_type": {
+          "type": "string",
+          "description": "Strategy classification",
+          "maxLength": 64
+        },
+        "direction": {
+          "type": "string",
+          "description": "Trade bias",
+          "maxLength": 32
+        },
+        "entry_price": {
+          "type": "number",
+          "description": "Fill price at entry"
+        },
+        "current_price": {
+          "type": "number",
+          "description": "Final settlement or closing price"
+        },
+        "status": {
+          "type": "string",
+          "description": "Closing status",
+          "maxLength": 64
+        },
+        "realized_r": {
+          "type": "number",
+          "description": "Harvested R-multiple"
+        },
+        "realized_pnl_dollars": {
+          "type": "number",
+          "description": "Harvested dollar PnL"
+        },
+        "opened_at": {
+          "type": "string",
+          "description": "Execution start timestamp",
+          "maxLength": 64
+        },
+        "closed_at": {
+          "type": "string",
+          "description": "Execution finish timestamp",
+          "maxLength": 64
+        },
+        "close_reason": {
+          "type": "string",
+          "description": "Explanation of trade resolution",
+          "maxLength": 256
+        }
+      },
+      "required": ["id", "userId", "symbol", "direction", "entry_price", "status", "opened_at"]
+    },
+    "MarketPricesCache": {
+      "title": "MarketPricesCache",
+      "description": "Cached market prices for throttling protection",
+      "type": "object",
+      "properties": {
+        "timestamp": {
+          "type": "number",
+          "description": "Epoch millisecond timestamp of last price sync"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Human-readable timestamp of sync",
+          "maxLength": 64
+        }
+      },
+      "required": ["timestamp"]
+    },
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Trusted collection of system administrators",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "UID of the administrator",
+          "maxLength": 128
+        },
+        "email": {
+          "type": "string",
+          "description": "Administrator email address",
+          "maxLength": 256
+        },
+        "assignedAt": {
+          "type": "string",
+          "description": "Timestamp when administrator role was assigned",
+          "maxLength": 64
+        },
+        "assignedBy": {
+          "type": "string",
+          "description": "Bootstrap or admin UID who granted permissions",
+          "maxLength": 128
+        }
+      },
+      "required": ["userId", "email", "assignedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User accounts with approval statuses and roles"
+    },
+    "/users/{userId}/settings/{settingId}": {
+      "schema": "UserSettings",
+      "description": "User specific credentials, Twelve Data API key, and risk configuration"
+    },
+    "/users/{userId}/testingLabHistory/{testId}": {
+      "schema": "TestingLabHistoryItem",
+      "description": "Completed strategy test records persisting across sessions"
+    },
+    "/marketPrices/{docId}": {
+      "schema": "MarketPricesCache",
+      "description": "Aggregated live asset prices to prevent client-side rate limit throttling"
+    },
+    "/admins/{userId}": {
+      "schema": "AdminRecord",
+      "description": "Trusted administrator list for RBAC role verification"
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Institutional Alpha Terminal",
+  "description": "Multi-asset quantitative trading platform with TimescaleDB continuous aggregates, LightGBM meta-labeler, and autonomous Gemini risk supervisor.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
