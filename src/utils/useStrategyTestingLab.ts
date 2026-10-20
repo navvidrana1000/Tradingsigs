@@ -120,6 +120,7 @@ export function useStrategyTestingLab(
       quantity?: number;
       riskDollars?: number;
     }) => {
+      if (checkDuplicateGuard(params.symbol, params.direction)) return false;
       const fillPrice = params.entryPrice;
       const initialStopLoss = params.stopLoss;
       const initialRiskDistance = Math.max(
@@ -179,6 +180,7 @@ export function useStrategyTestingLab(
       currentPrice: number;
       expiryHorizon: "1m" | "3m" | "5m";
       riskDollars?: number;
+      assetClass?: string;
     }) => {
       const isCall = params.action.includes("CALL");
       const dir = isCall ? "CALL" : "PUT";
@@ -191,7 +193,7 @@ export function useStrategyTestingLab(
         id: `test-bin-${params.symbol}-${Date.now().toString(36)}`,
         symbol: params.symbol,
         name: params.symbol,
-        asset_class: "CRYPTO",
+        asset_class: params.assetClass || "CRYPTO",
         strategy_type: "BINARY_OPTION",
         direction: dir,
         contract_identifier: `${params.symbol} ${params.expiryHorizon.toUpperCase()} ${dir}`,

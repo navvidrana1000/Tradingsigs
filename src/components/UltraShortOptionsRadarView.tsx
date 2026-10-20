@@ -150,7 +150,7 @@ Warning: ${setup.gamma_risk_warning}`;
               ⚡ Ultra-Short Options & 0DTE Radar (3-15 Min Timeline)
             </h2>
             <p className="text-xs md:text-sm text-slate-400 leading-relaxed">
-              Real-time delta velocity expansion, 0DTE gamma slingshot setups, and microsecond order flow confluence. Every contract is calibrated against live public pricing streams, verified by LightGBM gradient boosters and the Gemini Risk Supervisor.
+              Real-time delta velocity expansion and short-horizon setups scored by heuristic filters against live public pricing streams. Optional Gemini notes available. Not a calibrated model.
             </p>
           </div>
 
@@ -196,7 +196,7 @@ Warning: ${setup.gamma_risk_warning}`;
 
           <div className="p-3 bg-slate-950/70 rounded-xl border border-slate-800/60">
             <span className="text-[10px] text-slate-500 uppercase block font-sans">Quantitative Validator</span>
-            <span className="text-sm font-bold text-cyan-400 block mt-0.5">LightGBM + Gemini</span>
+            <span className="text-sm font-bold text-cyan-400 block mt-0.5">Heuristic + Gemini</span>
             <span className="text-[10px] text-slate-400">Dual model regime gating</span>
           </div>
 

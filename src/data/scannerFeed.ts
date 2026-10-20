@@ -190,6 +190,7 @@ export function evaluateAssetSetup(
     longSignal,
     binarySignal,
     lastUpdated: Date.now(),
+    dataQuality: "SYNTHETIC" as const, // overridden by live feeds
   };
 }
 
@@ -282,7 +283,7 @@ export function updateCandleRingBuffer(
  */
 export function useMarketUniverse(twelveDataApiKey?: string) {
   const [assets, setAssets] = useState<UnifiedScannedAsset[]>(getInitial84Assets);
-  const [isLiveConnected, setIsLiveConnected] = useState<boolean>(true);
+  const [isLiveConnected, setIsLiveConnected] = useState<boolean>(false);
   const [lastSyncTime, setLastSyncTime] = useState<string>("Connecting...");
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 

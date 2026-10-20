@@ -186,6 +186,7 @@ export interface UnifiedScannedAsset {
   longSignal: ReturnType<typeof import("../utils/quantMath").computeLongSignalSetup>;
   binarySignal: ReturnType<typeof import("../utils/quantMath").computeBinaryOptionSetup>;
   lastUpdated: number;
+  dataQuality?: "LIVE" | "DELAYED" | "SYNTHETIC";
 }
 
 /**

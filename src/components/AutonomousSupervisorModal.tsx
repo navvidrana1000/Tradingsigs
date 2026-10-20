@@ -97,12 +97,12 @@ export const AutonomousSupervisorModal: React.FC<AutonomousSupervisorModalProps>
         );
       } else {
         verdict = "APPROVE_SIGNAL";
-        headline = `APPROVED: Robust ${signal.direction} Confluence with ${Math.round(signal.win_probability * 100)}% Mathematical Win Probability`;
+        headline = `APPROVED: ${signal.direction} setup meets scanner confluence thresholds (not a calibrated win rate)`;
         riskWarning = `Hard stop maintained at ${signal.stop_loss}. Partial profit lock at TP1 (${signal.tp1_price}).`;
         thesis.push(
           `Causal Delta Z-Score at ${deltaZ > 0 ? "+" : ""}${deltaZ.toFixed(2)} verifies decisive institutional participation.`,
           `Rolling Hurst Exponent of ${hurst.toFixed(2)} confirms trending persistence with zero squeeze lockout risk.`,
-          `LightGBM meta-labeler and triple-barrier simulator project favorable +${(Math.abs(signal.tp1_price - signal.entry_price) / Math.abs(signal.entry_price - signal.stop_loss)).toFixed(2)}R risk-reward hurdle.`
+          `Heuristic confluence of delta, Hurst, and regime filters supports the setup. Not a calibrated win-rate model.`
         );
       }
 

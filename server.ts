@@ -11,6 +11,44 @@ const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json());
 
+// Simple in-memory rate limiter (production: use Redis or express-rate-limit)
+const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_WINDOW_MS = 10_000;
+const RATE_LIMIT_MAX = 30;
+
+function rateLimit(req: any, res: any, next: any) {
+  const key = req.ip || "unknown";
+  const now = Date.now();
+  let entry = rateLimitStore.get(key);
+  if (!entry || now > entry.resetAt) {
+    entry = { count: 0, resetAt: now + RATE_LIMIT_WINDOW_MS };
+    rateLimitStore.set(key, entry);
+  }
+  entry.count++;
+  if (entry.count > RATE_LIMIT_MAX) {
+    return res.status(429).json({ error: "Rate limit exceeded. Try again shortly." });
+  }
+  next();
+}
+
+
+app.use(rateLimit);
+
+// Simple request origin / shared-secret guard for sensitive endpoints.
+// In production replace with Firebase ID token verification.
+const ALLOWED_ORIGINS = new Set(["http://localhost:3000", "http://127.0.0.1:3000"]);
+function requireLocalOrSecret(req: any, res: any): boolean {
+  const origin = req.get("origin") || "";
+  const secret = req.get("x-terminal-secret") || "";
+  const expected = process.env.TERMINAL_API_SECRET || "";
+  if (ALLOWED_ORIGINS.has(origin) || (expected && secret === expected)) {
+    return true;
+  }
+  res.status(401).json({ error: "Unauthorized. Sensitive endpoints require a valid origin or TERMINAL_API_SECRET." });
+  return false;
+}
+
+
 // In-memory cache for market tickers
 let tickersCache: { data: any[]; timestamp: number } | null = null;
 const CACHE_TTL_MS = 2500;
@@ -37,7 +75,7 @@ for (const item of MASTER_UNIVERSE_84) {
 
 // 1. Health & Config status endpoint
 app.get("/api/health", (req, res) => {
-  const hasKey = Boolean(process.env.GEMINI_API_KEY && !process.env.GEMINI_API_KEY.startsWith("AIzaSyDummy"));
+  const hasKey = Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.length > 20 && !process.env.GEMINI_API_KEY.startsWith("AIzaSyDummy"));
   res.json({
     status: "ONLINE",
     gemini_key_configured: hasKey,
@@ -88,6 +126,7 @@ app.get("/api/market/tickers", async (req, res) => {
           trend: change > 0.5 ? "BULLISH" : change < -0.5 ? "BEARISH" : "CHOP",
           is_liquid: true,
           source: "Binance Live Stream",
+          dataQuality: "LIVE",
         };
         results.push(tickerObj);
         lastKnownPrices.set(item.symbol, tickerObj);
@@ -103,7 +142,7 @@ app.get("/api/market/tickers", async (req, res) => {
         const goldChange = parseFloat(paxg.priceChangePercent);
         const goldObj = {
           symbol: "XAU/USD",
-          name: "Gold Spot / USD",
+          name: "Gold (PAXG proxy) / USD",
           asset_class: "COMMODITIES",
           categoryLabel: "Precious Metals",
           price: goldPrice,
@@ -114,7 +153,8 @@ app.get("/api/market/tickers", async (req, res) => {
           hurst: 0.58,
           trend: goldChange > 0.3 ? "BULLISH" : goldChange < -0.3 ? "BEARISH" : "CHOP",
           is_liquid: true,
-          source: "Binance PAXG Spot (24/7 Gold)",
+          source: "Binance PAXGUSDT (gold proxy)",
+          dataQuality: "LIVE",
         };
         results.push(goldObj);
         lastKnownPrices.set("XAU/USD", goldObj);
@@ -163,6 +203,7 @@ app.get("/api/market/tickers", async (req, res) => {
             trend: changePct > 0.3 ? "BULLISH" : changePct < -0.3 ? "BEARISH" : "CHOP",
             is_liquid: true,
             source: "Real Live Market (NYSE/NASDAQ/FX)",
+            dataQuality: "DELAYED",
           };
           lastKnownPrices.set(asset.symbol, tickerObj);
           return tickerObj;
@@ -194,6 +235,7 @@ app.get("/api/market/tickers", async (req, res) => {
         trend: "BULLISH",
         is_liquid: true,
         source: "Global Market Feed",
+        dataQuality: "SYNTHETIC",
       };
       lastKnownPrices.set(asset.symbol, existing);
     }
@@ -219,6 +261,7 @@ app.get("/api/market/tickers", async (req, res) => {
         trend: "BULLISH",
         is_liquid: true,
         source: "Binance Feed",
+        dataQuality: "SYNTHETIC",
       };
       results.push(fallback);
     }
@@ -376,6 +419,7 @@ app.get("/api/market/candles", async (req, res) => {
 
 // 4. Server-Side Proxy for Gemini Risk Supervisor
 app.post("/api/supervisor/evaluate", async (req, res) => {
+  if (!requireLocalOrSecret(req, res)) return;
   const { signal, model = "gemini-2.5-flash", config = {} } = req.body;
 
   if (!signal) {
@@ -387,7 +431,7 @@ app.post("/api/supervisor/evaluate", async (req, res) => {
   if (apiKey && apiKey.length > 20 && !apiKey.startsWith("AIzaSyDummy")) {
     try {
       const ai = new GoogleGenAI({ apiKey });
-      const targetModel = model.includes("pro") ? "gemini-3.1-pro-preview" : "gemini-3.8-flash";
+      const targetModel = model.includes("pro") ? "gemini-2.5-pro" : "gemini-2.5-flash";
 
       const systemInstruction = `You are the Chief Risk Officer and Head of Algorithmic Execution at an institutional quant fund maintaining a 75%+ win rate on TP1.
 Your mandate is to ruthlessly filter false breakouts and protect capital.
@@ -466,12 +510,12 @@ Return deterministic, institutional-grade reasoning in valid JSON:
     );
   } else {
     verdict = "APPROVE_SIGNAL";
-    headline = `APPROVED: Robust ${signal.direction} Confluence with ${Math.round((signal.win_probability || 0.8) * 100)}% Win Expectancy`;
+    headline = `APPROVED: ${signal.direction} setup meets scanner confluence thresholds (not a calibrated win rate)`;
     riskWarning = `Hard stop maintained at ${signal.stop_loss}. Partial profit lock at TP1 (${signal.tp1_price}).`;
     thesis.push(
       `Causal Delta Z-Score at ${deltaZ > 0 ? "+" : ""}${deltaZ.toFixed(2)} verifies decisive institutional participation.`,
       `Rolling Hurst Exponent of ${hurst.toFixed(2)} confirms trending persistence with zero squeeze lockout risk.`,
-      `LightGBM meta-labeler and triple-barrier simulator project favorable risk-reward hurdle.`
+      `Heuristic confluence of delta, Hurst, and regime filters supports the setup. Not a calibrated win-rate model.`
     );
   }
 
@@ -501,7 +545,7 @@ app.post("/api/supervisor/test-connection", async (req, res) => {
   const startTime = Date.now();
   try {
     const ai = new GoogleGenAI({ apiKey: keyToTest });
-    const targetModel = model.includes("pro") ? "gemini-3.1-pro-preview" : "gemini-3.8-flash";
+    const targetModel = model.includes("pro") ? "gemini-2.5-pro" : "gemini-2.5-flash";
 
     const response = await ai.models.generateContent({
       model: targetModel,
@@ -534,6 +578,7 @@ app.post("/api/supervisor/test-connection", async (req, res) => {
 
 // 5. Telegram Integration Dispatch Proxy
 app.post("/api/integrations/test-telegram", async (req, res) => {
+  if (!requireLocalOrSecret(req, res)) return;
   const { botToken, chatId } = req.body;
   if (!botToken || !chatId) {
     return res.status(400).json({ error: "Missing botToken or chatId" });
@@ -566,9 +611,17 @@ app.post("/api/integrations/test-telegram", async (req, res) => {
 
 // 6. Generic Downstream Webhook Proxy
 app.post("/api/integrations/test-webhook", async (req, res) => {
+  if (!requireLocalOrSecret(req, res)) return;
   const { webhookUrl } = req.body;
   if (!webhookUrl) {
     return res.status(400).json({ error: "Missing webhookUrl" });
+  }
+  // SSRF mitigation: only allow https and a short allowlist of known webhook hosts
+  let parsed: URL;
+  try { parsed = new URL(webhookUrl); } catch { return res.status(400).json({ error: "Invalid URL" }); }
+  const allowedHosts = new Set(["hooks.slack.com", "discord.com", "api.telegram.org", "maker.ifttt.com"]);
+  if (parsed.protocol !== "https:" || !allowedHosts.has(parsed.hostname)) {
+    return res.status(400).json({ error: "Webhook URL must be https and from an allowed provider (Slack, Discord, Telegram, IFTTT)." });
   }
 
   try {

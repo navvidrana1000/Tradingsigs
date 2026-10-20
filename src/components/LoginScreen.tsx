@@ -203,7 +203,7 @@ export const LoginScreen: React.FC = () => {
 
       {/* Footer Disclaimer */}
       <footer className="relative z-10 max-w-6xl mx-auto w-full pt-4 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between text-[11px] font-mono text-slate-500 gap-2">
-        <span>Institutional Alpha Terminal v3.4 • TimescaleDB & Firebase Edition</span>
+        <span>Institutional Alpha Terminal v3.4 • Rules-based scanner + Firebase (not investment advice)</span>
         <span>Super Admin: {BOOTSTRAP_ADMIN_EMAIL}</span>
       </footer>
     </div>

@@ -40,6 +40,7 @@ export const ActiveStrategyTestsTray: React.FC<ActiveStrategyTestsTrayProps> = (
 
   const totalFloatingPnl = openTests.reduce((acc, t) => acc + t.floating_pnl_dollars, 0);
   const totalFloatingR = openTests.reduce((acc, t) => acc + t.floating_r, 0);
+  const totalOpenRisk = openTests.reduce((acc, t) => acc + (t.risk_dollars || 0), 0);
 
   const totalClosedR = closedTests.reduce((acc, t) => acc + (t.realized_r || 0), 0);
   const winningClosed = closedTests.filter((t) => (t.realized_r || 0) > 0).length;
@@ -90,6 +91,9 @@ export const ActiveStrategyTestsTray: React.FC<ActiveStrategyTestsTrayProps> = (
                 {totalFloatingR >= 0 ? "+" : ""}
                 {totalFloatingR.toFixed(2)}R (${totalFloatingPnl >= 0 ? "+" : ""}
                 {totalFloatingPnl.toFixed(2)})
+                {totalOpenRisk > 0 && (
+                  <span className="ml-2 text-zinc-400">| Risk ${totalOpenRisk.toFixed(0)}</span>
+                )}
               </span>
             </div>
             <div className="h-6 w-px bg-slate-800" />

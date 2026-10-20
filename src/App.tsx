@@ -41,6 +41,7 @@ import { RejectedScreen } from "./components/RejectedScreen";
 import { LoginScreen } from "./components/LoginScreen";
 import { AuthStatusMenu } from "./components/AuthStatusMenu";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import {
   DEFAULT_SUPERVISOR_CONFIG,
   SupervisorConfig,
@@ -68,6 +69,7 @@ export type TerminalTab =
 function TerminalContent() {
   const {
     user,
+    userProfile,
     isPending,
     isRejected,
     isAdmin,
@@ -206,11 +208,21 @@ function TerminalContent() {
       currentPrice: bin.currentPrice,
       expiryHorizon: bin.expiryHorizon,
       riskDollars,
+      assetClass: asset.assetClass,
     });
   };
 
-  // Track notified signals to avoid repeat spamming
+  // Track notified signals to avoid repeat spamming (persisted across reloads)
   const notifiedSignaledMap = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("notified_signals_v1");
+      if (raw) {
+        const arr = JSON.parse(raw) as string[];
+        notifiedSignaledMap.current = new Set(arr.slice(-200)); // keep last 200
+      }
+    } catch {}
+  }, []);
 
   // Real-Time Notification Monitoring on fresh >=88% setups
   useEffect(() => {
@@ -224,6 +236,12 @@ function TerminalContent() {
           const key = `${a.symbol}-${a.primarySignalType}`;
           if (!notifiedSignaledMap.current.has(key)) {
             notifiedSignaledMap.current.add(key);
+            try {
+              localStorage.setItem(
+                "notified_signals_v1",
+                JSON.stringify(Array.from(notifiedSignaledMap.current).slice(-200))
+              );
+            } catch {}
 
             // Trigger browser native push notification
             triggerStrongSignalNotification({
@@ -323,6 +341,18 @@ function TerminalContent() {
   // 3. Approval Gates
   if (isPending) return <PendingApprovalScreen />;
   if (isRejected) return <RejectedScreen />;
+  // Fail closed: signed-in user with no profile after load must not enter the terminal
+  if (user && !userProfile && !loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-950 text-slate-200 p-8">
+        <div className="max-w-md text-center space-y-3">
+          <div className="text-amber-400 font-semibold">Access verification failed</div>
+          <p className="text-sm text-slate-400">Could not load your profile. Please refresh or contact an administrator. The terminal remains locked until verification succeeds.</p>
+          <button className="px-4 py-2 bg-slate-800 rounded text-sm" onClick={() => window.location.reload()}>Reload</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-slate-950 text-slate-100 font-sans overflow-hidden selection:bg-emerald-500 selection:text-slate-950">
@@ -808,14 +838,21 @@ function TerminalContent() {
           </button>
         </div>
       )}
+
+      {/* Compliance disclaimer */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-zinc-950/90 border-t border-zinc-800 text-[10px] text-zinc-500 text-center py-1 px-2 pointer-events-none">
+        Rules-based scanner prototype • Scores are setup strength, not calibrated win rates • Not investment advice • Data quality varies (LIVE / DELAYED / SYNTHETIC)
+      </div>
     </div>
   );
 }
 
 export default function App() {
   return (
-    <AuthProvider>
-      <TerminalContent />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <TerminalContent />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

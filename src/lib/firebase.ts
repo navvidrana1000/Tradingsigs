@@ -12,7 +12,10 @@ export const auth = getAuth(app);
 export const googleAuthProvider = new GoogleAuthProvider();
 
 // Standard Admin Email from environment
-export const BOOTSTRAP_ADMIN_EMAIL = "rnavvid1000@gmail.com";
+// Bootstrap admin email — override via VITE_BOOTSTRAP_ADMIN_EMAIL at build time
+export const BOOTSTRAP_ADMIN_EMAIL =
+  (typeof import.meta !== "undefined" && (import.meta as any).env?.VITE_BOOTSTRAP_ADMIN_EMAIL) ||
+  "rnavvid1000@gmail.com";
 
 export enum OperationType {
   CREATE = "create",

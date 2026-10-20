@@ -9,7 +9,8 @@
     "start": "tsx server.ts",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "echo 'Add vitest for unit tests on quantMath pure functions'"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -33,7 +34,7 @@
     "esbuild": "^0.25.0",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",
-    "typescript": "^7.0.2",
+    "typescript": "^5.6.0",
     "@types/express": "^4.17.21"
   }
 }

@@ -506,9 +506,10 @@ export function computeBinaryOptionSetup(params: {
   for (let i = 0; i < params.symbol.length; i++) {
     symbolHash = (symbolHash << 5) - symbolHash + params.symbol.charCodeAt(i);
   }
-  const hashOffset = (((Math.abs(symbolHash) % 97) / 97) - 0.5) * 0.016; // ±0.8%
-  const microOffset = (Math.sin(vwapZ * 2.8 + deltaZ * 1.9) * 0.008) + ((hurst - 0.5) * 0.014) + hashOffset;
-  const winProb = Math.min(0.915, Math.max(0.510, Number((rawProb + microOffset).toFixed(3))));
+  // Reduced micro-offset to limit artificial differentiation while preserving uniqueness
+  const hashOffset = (((Math.abs(symbolHash) % 97) / 97) - 0.5) * 0.006; // ±0.3%
+  const microOffset = (Math.sin(vwapZ * 2.8 + deltaZ * 1.9) * 0.003) + ((hurst - 0.5) * 0.005) + hashOffset;
+  const winProb = Math.min(0.88, Math.max(0.52, Number((rawProb + microOffset).toFixed(3))));
 
   // 6. EXACT BINARY TRIGGER RULES (NEVER BUY THE PEAK ON BINARY OPTIONS!)
   // Setup A (Oversold Band Snapback):
@@ -561,9 +562,9 @@ export function computeBinaryOptionSetup(params: {
   if (isFlatVol) {
     confidenceScore = 52.0;
   } else if (!satisfiesEntryTrigger) {
-    confidenceScore = Math.min(68.0, Number((54.0 + Math.abs(deltaZ) * 2.5 + Math.abs(vwapZ) * 2.0).toFixed(1)));
+    confidenceScore = Math.min(64.0, Number((50.0 + Math.abs(deltaZ) * 2.0 + Math.abs(vwapZ) * 1.6).toFixed(1)));
   } else {
-    confidenceScore = Math.min(91.5, Math.max(78.5, Number((78.5 + Math.abs(deltaZ) * 3.2 + Math.abs(vwapZ) * 2.4).toFixed(1))));
+    confidenceScore = Math.min(88.0, Math.max(75.0, Number((75.0 + Math.abs(deltaZ) * 2.8 + Math.abs(vwapZ) * 2.0).toFixed(1))));
   }
 
   // Trend Lockout:
